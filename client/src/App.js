@@ -3,6 +3,7 @@ import { BrowserRouter, Link, Route, Switch } from 'react-router-dom';
 import './App.css';
 import ChannelsListWithData from './components/ChannelsListWithData';
 import NotFound from './components/NotFound';
+import Login from './components/Login';
 import ChannelDetails from './components/ChannelDetails';
 import { SubscriptionClient } from 'subscriptions-transport-ws';
 import { ApolloClient } from 'apollo-client';
@@ -11,42 +12,48 @@ import { HttpLink } from 'apollo-link-http';
 import { WebSocketLink } from 'apollo-link-ws';
 import { InMemoryCache } from 'apollo-cache-inmemory';
 import { ApolloProvider, graphql } from 'react-apollo';
+import { setContext } from 'apollo-link-context';
 import gql from 'graphql-tag';
 import { getMainDefinition } from 'apollo-utilities';
 
-const wsLink = new WebSocketLink({
-  uri: `ws://localhost:4000/subscriptions`,
+/*const wsLink = new WebSocketLink({
+  uri: `ws://localhost:5000/subscriptions`,
   options: {
     reconnect: true
   }
-});
-
-const httpLink = new HttpLink({
-  uri: 'http://localhost:4000/graphql',
-});
-
-/*fetch('http://localhost:4000/graphql', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json'
-  },
-}).then(response => {
-  response.json().then(data => console.log(data.data))
 });*/
 
-const link = split(
+const httpLink = new HttpLink({
+  uri: 'http://localhost:5000/graphql',
+});
+
+
+/*const link = split(
   ({ query }) => {
     const { kind, operation } = getMainDefinition(query);
     return kind === 'OperationDefinition' && operation === 'subscription';
   },
   wsLink,
   httpLink,
-);
+);*/
 
-const client = new ApolloClient({
-  link: link,
-  cache: new InMemoryCache()
+const authLink = setContext((_, { headers }) => {
+const token = sessionStorage.getItem('token');
+return {
+  headers: {
+    ...headers,
+    "authorization": token ? `Bearer ${token}` : "",
+    "x-jwt-token": token
+  }
+}
 });
+
+
+export const client = new ApolloClient({
+  link: authLink.concat(httpLink),
+  cache: new InMemoryCache()
+})
+
 
 
 class App extends Component {
@@ -58,6 +65,7 @@ class App extends Component {
             <Link to="/" className="navbar">
               React + GraphQL Tutorial
             </Link>
+            <Login />
             <Switch>
               <Route exact path="/" component={ChannelsListWithData} />
               <Route path="/channel/:channelId" component={ChannelDetails} />
